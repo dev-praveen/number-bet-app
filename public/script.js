@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextPageBtn = document.getElementById('nextPageBtn');
     const pageInfo = document.getElementById('pageInfo');
     const saveBetsBtn = document.getElementById('saveBetsBtn');
+    const deleteAllBtn = document.getElementById('deleteAllBtn');
     const errorMessage = document.getElementById('error-message');
     const statusMessage = document.getElementById('status-message');
 
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
             noBetsMessage.style.display = 'block';
             paginationControls.style.display = 'none';
             saveBetsBtn.disabled = true;
+            deleteAllBtn.disabled = true;
             betsTableBody.innerHTML = ''; // Ensure it's really empty
             return;
         }
@@ -54,7 +56,10 @@ document.addEventListener('DOMContentLoaded', () => {
         noBetsMessage.style.display = 'none';
         paginationControls.style.display = 'block';
         saveBetsBtn.disabled = false;
+        deleteAllBtn.disabled = false;
 
+        // Sort bets by number for better readability
+        currentBets.sort((a, b) => a.number - b.number);
 
         // Pagination calculations
         const totalPages = Math.ceil(currentBets.length / rowsPerPage);
@@ -86,16 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
             deleteBtn.setAttribute('data-action', 'delete');
             deleteBtn.setAttribute('data-id', bet.id); // Add id to button for easier event handling
             cellActions.appendChild(deleteBtn);
-
-            // Add Edit Button (Placeholder - functionality not implemented yet)
-            // const editBtn = document.createElement('button');
-            // editBtn.textContent = 'Edit';
-            // editBtn.classList.add('edit-btn'); // Add styling if needed
-            // editBtn.setAttribute('data-action', 'edit');
-            // editBtn.setAttribute('data-id', bet.id);
-            // editBtn.style.marginLeft = '5px'; // Add some spacing
-            // editBtn.disabled = true; // Disable for now
-            // cellActions.appendChild(editBtn);
         });
 
         // Update pagination controls
@@ -129,14 +124,21 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- Add Bet ---
-        const newBet = {
-            id: generateTempId(), // Temporary ID
-            number: number,
-            amount: amount
-        };
+        // Check if number already exists
+        const existingBetIndex = currentBets.findIndex(bet => bet.number === number);
+        if (existingBetIndex !== -1) {
+            // Add amount to existing bet
+            currentBets[existingBetIndex].amount += amount;
+        } else {
+            // Add new bet
+            const newBet = {
+                id: generateTempId(), // Temporary ID
+                number: number,
+                amount: amount
+            };
+            currentBets.push(newBet);
+        }
 
-        currentBets.push(newBet);
         betForm.reset(); // Clear form fields
         betNumberInput.focus(); // Focus back on number field
 
@@ -152,12 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const betIdToDelete = target.dataset.id;
             deleteBet(betIdToDelete);
         }
-        // Add else if for edit later:
-        // else if (target.tagName === 'BUTTON' && target.dataset.action === 'edit') {
-        //     const betIdToEdit = target.dataset.id;
-        //     // Call an editBet function (to be implemented)
-        //     console.log("Edit clicked for ID:", betIdToEdit);
-        // }
     };
 
     // Delete a bet from the temporary list
@@ -173,19 +169,45 @@ document.addEventListener('DOMContentLoaded', () => {
         renderGrid();
     };
 
+    // Delete All functionality with confirmation
+    const deleteAllBets = async () => {
+        if (!confirm('Are you sure you want to delete all bets?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/delete-all-bets', {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || `HTTP error! Status: ${response.status}`);
+            }
+
+            // Clear local bets after successful server deletion
+            currentBets = [];
+            currentPage = 1;
+            renderGrid();
+            showMessage(statusMessage, 'All bets have been deleted.', 'success');
+        } catch (error) {
+            console.error('Error deleting bets:', error);
+            showMessage(statusMessage, `Error: ${error.message}`, 'error');
+        }
+    };
+
     // Save all current bets to the database
     const saveBetsToServer = async () => {
-         if (currentBets.length === 0) {
+        if (currentBets.length === 0) {
             showMessage(statusMessage, 'No bets to save.', 'error');
             return;
-         }
+        }
 
         // Prepare data for the server (remove temporary client-side IDs)
         const betsToSave = currentBets.map(({ number, amount }) => ({ number, amount }));
 
         saveBetsBtn.disabled = true; // Disable button during request
-        showMessage(statusMessage, 'Saving...', 'info'); // Indicate saving process
-
+        showMessage(statusMessage, 'Saving...', 'info');
 
         try {
             const response = await fetch('/api/save-bets', {
@@ -193,27 +215,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ bets: betsToSave }), // Send in expected format
+                body: JSON.stringify({ bets: betsToSave }),
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                 // Handle HTTP errors (e.g., 400, 500)
-                 throw new Error(result.error || `HTTP error! Status: ${response.status}`);
+                throw new Error(result.error || `HTTP error! Status: ${response.status}`);
             }
 
-             // Success
-             showMessage(statusMessage, result.message || 'Bets saved successfully!', 'success');
-             currentBets = []; // Clear the temporary bets
-             currentPage = 1;
-             renderGrid(); // Re-render the empty grid
-
-
+            // Success
+            showMessage(statusMessage, result.message || 'Bets saved successfully!', 'success');
+            currentBets = []; // Clear the temporary bets
+            
+            // Load the saved bets to display them
+            await loadSavedBets();
+            
         } catch (error) {
             console.error('Error saving bets:', error);
             showMessage(statusMessage, `Error: ${error.message}`, 'error');
-             saveBetsBtn.disabled = false; // Re-enable button on failure
+        } finally {
+            saveBetsBtn.disabled = false; // Re-enable button
         }
     };
 
@@ -238,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     addBetBtn.addEventListener('click', addBet);
+    deleteAllBtn.addEventListener('click', deleteAllBets);
     // Allow pressing Enter in amount field to add bet
     betAmountInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {

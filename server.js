@@ -47,6 +47,17 @@ app.post('/api/save-bets', (req, res) => {
     });
 });
 
+// API endpoint to delete all bets
+app.delete('/api/delete-all-bets', (req, res) => {
+    db.run('DELETE FROM bets', [], (err) => {
+        if (err) {
+            console.error("Error deleting bets:", err);
+            return res.status(500).json({ error: 'Failed to delete bets from database.' });
+        }
+        res.json({ message: 'All bets have been deleted successfully.' });
+    });
+});
+
 // Catch-all for serving the main HTML file (optional, good for single-page apps)
 // app.get('*', (req, res) => {
 //   res.sendFile(path.join(__dirname, 'public', 'index.html'));
