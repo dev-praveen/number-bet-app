@@ -300,10 +300,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     addBetBtn.addEventListener('click', addBet);
     deleteAllBtn.addEventListener('click', deleteAllBets);
+
+    // Handle number input validation and auto-focus
+    betNumberInput.addEventListener('input', (e) => {
+        const value = e.target.value;
+        const number = parseInt(value, 10);
+        
+        // Check if the input is a valid 2-digit number
+        if (value.length === 2 && !isNaN(number) && number >= 0 && number <= 99) {
+            betAmountInput.focus();
+        }
+    });
+
     // Allow pressing Enter in amount field to add bet
     betAmountInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            e.preventDefault(); // Prevent default form submission if it were type="submit"
+            e.preventDefault();
             addBet();
         }
     });
