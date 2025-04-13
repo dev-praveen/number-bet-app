@@ -164,17 +164,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Delete a bet from the temporary list
-    const deleteBet = (betId) => {
-        currentBets = currentBets.filter(bet => bet.id !== betId);
-        // If the current page becomes empty after deletion, go to the previous page
-        const totalPages = Math.ceil(currentBets.length / rowsPerPage);
-        if (currentPage > totalPages && totalPages > 0) {
-            currentPage = totalPages;
-        } else if (currentBets.length === 0) {
-            currentPage = 1; // Reset to page 1 if all bets are deleted
+    // Delete a bet from both UI and database if saved
+    const deleteBet = async (betId) => {
+        const betToDelete = currentBets.find(bet => bet.id === betId);
+        if (!betToDelete) return;
+
+        try {
+            // Only attempt to delete from database if it's a saved bet
+            if (savedNumbers.has(betToDelete.number)) {
+                const response = await fetch(`/api/bets/${betToDelete.number}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const result = await response.json();
+                    throw new Error(result.error || `HTTP error! Status: ${response.status}`);
+                }
+                savedNumbers.delete(betToDelete.number);
+            }
+
+            // Remove from local state
+            currentBets = currentBets.filter(bet => bet.id !== betId);
+
+            // Update pagination if needed
+            const totalPages = Math.ceil(currentBets.length / rowsPerPage);
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (currentBets.length === 0) {
+                currentPage = 1;
+            }
+            
+            renderGrid();
+            showMessage(statusMessage, 'Bet deleted successfully.', 'success');
+        } catch (error) {
+            console.error('Error deleting bet:', error);
+            showMessage(statusMessage, `Error: ${error.message}`, 'error');
         }
-        renderGrid();
     };
 
     // Delete All functionality with confirmation

@@ -58,6 +58,25 @@ app.delete('/api/delete-all-bets', (req, res) => {
     });
 });
 
+// API endpoint to delete a single bet
+app.delete('/api/bets/:number', (req, res) => {
+    const number = parseInt(req.params.number);
+    if (isNaN(number) || number < 0 || number > 99) {
+        return res.status(400).json({ error: 'Invalid bet number.' });
+    }
+
+    db.run('DELETE FROM bets WHERE number = ?', [number], function(err) {
+        if (err) {
+            console.error("Error deleting bet:", err);
+            return res.status(500).json({ error: 'Failed to delete bet from database.' });
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Bet not found.' });
+        }
+        res.json({ message: 'Bet deleted successfully.' });
+    });
+});
+
 // Catch-all for serving the main HTML file (optional, good for single-page apps)
 // app.get('*', (req, res) => {
 //   res.sendFile(path.join(__dirname, 'public', 'index.html'));
