@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Bet Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <form id="betForm">
+        <div class="input-container">
+            <div class="form-group">
+                <label for="betNumber">Number (00-99):</label>
+                <input type="number" id="betNumber" name="betNumber" min="0" max="99" step="1" required>
+            </div>
+            <div class="form-group">
+                <label for="betAmount">Amount:</label>
+                <input type="number" id="betAmount" name="betAmount" min="0.01" step="any" required>
+            </div>
+        </div>
+        <button type="button" id="addBetBtn">Add</button>
+        <p id="error-message" class="error"></p>
+    </form>
+
+    <hr>
+
+    <h2>Numbers list</h2>
+    <div id="betsGrid">
+        <table id="betsTable">
+            <thead>
+                <tr>
+                    <th>Number</th>
+                    <th>Amount</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="betsTableBody">
+                <!-- Bets will be added here by JavaScript -->
+            </tbody>
+        </table>
+         <p id="no-bets-message">No bets added yet.</p>
+    </div>
+
+    <div id="paginationControls">
+        <button id="prevPageBtn" disabled>« Previous</button>
+        <span id="pageInfo">Page 1 of 1</span>
+        <button id="nextPageBtn" disabled>Next »</button>
+    </div>
+
+    <hr>
+
+    <button id="saveBetsBtn" disabled>Save All</button>
+    <p id="status-message" class="status"></p>
+
+
+    <script src="script.js"></script>
+</body>
+</html>
