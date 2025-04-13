@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
-    let currentBets = []; // Holds bets before saving: { id: tempId, number: num, amount: amt }
+    let currentBets = []; // Holds all bets
+    let savedNumbers = new Set(); // Track numbers that are already saved
     let currentPage = 1;
-    const rowsPerPage = 15; // Changed to 15 bets per page
+    const rowsPerPage = 15;
 
     // --- DOM Elements ---
     const betForm = document.getElementById('betForm');
@@ -30,12 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
         element.textContent = message;
         element.className = type; // Add 'error' or 'success' class if needed for styling
         // Clear message after a delay
-         if (message) {
-             setTimeout(() => {
-                 element.textContent = '';
-                 element.className = '';
-             }, 4000);
-         }
+        if (message) {
+            setTimeout(() => {
+                element.textContent = '';
+                element.className = '';
+            }, 4000);
+        }
     };
 
     // Render the grid with pagination
@@ -44,10 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
         statusMessage.textContent = ''; // Clear status on redraw
         statusMessage.className = 'status';
 
+        // Check if there are any unsaved bets
+        const hasUnsavedBets = currentBets.some(bet => !savedNumbers.has(bet.number));
+        saveBetsBtn.disabled = !hasUnsavedBets;
+
         if (currentBets.length === 0) {
             noBetsMessage.style.display = 'block';
             paginationControls.style.display = 'none';
-            saveBetsBtn.disabled = true;
             deleteAllBtn.disabled = true;
             betsTableBody.innerHTML = ''; // Ensure it's really empty
             return;
@@ -55,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         noBetsMessage.style.display = 'none';
         paginationControls.style.display = 'block';
-        saveBetsBtn.disabled = false;
         deleteAllBtn.disabled = false;
 
         // Sort bets by number for better readability
@@ -64,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Pagination calculations
         const totalPages = Math.ceil(currentBets.length / rowsPerPage);
         currentPage = Math.min(currentPage, totalPages); // Adjust if currentPage > totalPages after deletion
-         if (currentPage < 1) currentPage = 1; // Ensure currentPage is at least 1
+        if (currentPage < 1) currentPage = 1; // Ensure currentPage is at least 1
 
         const startIndex = (currentPage - 1) * rowsPerPage;
         const endIndex = startIndex + rowsPerPage;
@@ -81,8 +84,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Format number to always show two digits (e.g., 05)
             cellNumber.textContent = bet.number.toString().padStart(2, '0');
-             // Format amount (e.g., to 2 decimal places) - adjust as needed
+            // Format amount (e.g., to 2 decimal places) - adjust as needed
             cellAmount.textContent = bet.amount.toFixed(2);
+
+            // Add status indicator to saved bets
+            if (savedNumbers.has(bet.number)) {
+                row.classList.add('saved-bet');
+            }
 
             // Add Delete Button
             const deleteBtn = document.createElement('button');
@@ -115,9 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const amount = parseFloat(amountStr);
 
         if (isNaN(number) || number < 0 || number > 99 || !Number.isInteger(number)) {
-             showMessage(errorMessage, 'Number must be a whole number between 00 and 99.');
-             return;
-         }
+            showMessage(errorMessage, 'Number must be a whole number between 00 and 99.');
+            return;
+        }
 
         if (isNaN(amount) || amount <= 0) {
             showMessage(errorMessage, 'Amount must be a positive number.');
@@ -159,9 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete a bet from the temporary list
     const deleteBet = (betId) => {
         currentBets = currentBets.filter(bet => bet.id !== betId);
-         // If the current page becomes empty after deletion, go to the previous page
+        // If the current page becomes empty after deletion, go to the previous page
         const totalPages = Math.ceil(currentBets.length / rowsPerPage);
-        if(currentPage > totalPages && totalPages > 0) {
+        if (currentPage > totalPages && totalPages > 0) {
             currentPage = totalPages;
         } else if (currentBets.length === 0) {
             currentPage = 1; // Reset to page 1 if all bets are deleted
@@ -187,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Clear local bets after successful server deletion
             currentBets = [];
+            savedNumbers.clear(); // Clear saved numbers
             currentPage = 1;
             renderGrid();
             showMessage(statusMessage, 'All bets have been deleted.', 'success');
@@ -196,16 +205,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Save all current bets to the database
+    // Save all unsaved bets to the database
     const saveBetsToServer = async () => {
-        if (currentBets.length === 0) {
-            showMessage(statusMessage, 'No bets to save.', 'error');
+        // Filter out already saved numbers
+        const unsavedBets = currentBets.filter(bet => !savedNumbers.has(bet.number));
+
+        if (unsavedBets.length === 0) {
+            showMessage(statusMessage, 'No new bets to save.', 'info');
             return;
         }
 
-        // Prepare data for the server (remove temporary client-side IDs)
-        const betsToSave = currentBets.map(({ number, amount }) => ({ number, amount }));
-
+        const betsToSave = unsavedBets.map(({ number, amount }) => ({ number, amount }));
         saveBetsBtn.disabled = true; // Disable button during request
         showMessage(statusMessage, 'Saving...', 'info');
 
@@ -224,13 +234,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(result.error || `HTTP error! Status: ${response.status}`);
             }
 
-            // Success
-            showMessage(statusMessage, result.message || 'Bets saved successfully!', 'success');
-            currentBets = []; // Clear the temporary bets
-            
-            // Load the saved bets to display them
-            await loadSavedBets();
-            
+            // Mark the successfully saved bets
+            unsavedBets.forEach(bet => {
+                savedNumbers.add(bet.number);
+            });
+
+            const skippedMsg = result.skippedCount ? ` (${result.skippedCount} already existed)` : '';
+            showMessage(statusMessage, result.message + skippedMsg, 'success');
+            renderGrid();
+
         } catch (error) {
             console.error('Error saving bets:', error);
             showMessage(statusMessage, `Error: ${error.message}`, 'error');
@@ -251,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ...bet,
                 id: bet.id.toString() // Convert DB id to string to match client-side format
             }));
+            // Update the saved numbers set
+            savedNumbers = new Set(currentBets.map(bet => bet.number));
             renderGrid();
         } catch (error) {
             console.error('Error loading bets:', error);
@@ -279,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     nextPageBtn.addEventListener('click', () => {
-         const totalPages = Math.ceil(currentBets.length / rowsPerPage);
+        const totalPages = Math.ceil(currentBets.length / rowsPerPage);
         if (currentPage < totalPages) {
             currentPage++;
             renderGrid();
