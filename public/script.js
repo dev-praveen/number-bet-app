@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let currentBets = []; // Holds all bets
     let savedNumbers = new Set(); // Track numbers that are already saved
+    let modifiedNumbers = new Set(); // Track numbers that have been modified
     let currentPage = 1;
     const rowsPerPage = 15;
 
@@ -57,15 +58,22 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('show');
     };
 
+    // Check if there are any unsaved or modified bets
+    const hasUnsavedBets = () => {
+        return currentBets.some(bet => 
+            !savedNumbers.has(bet.number) || 
+            modifiedNumbers.has(bet.number)
+        );
+    };
+
     // Render the grid with pagination
     const renderGrid = () => {
         betsTableBody.innerHTML = ''; // Clear current table rows
         statusMessage.textContent = ''; // Clear status on redraw
         statusMessage.className = 'status';
 
-        // Check if there are any unsaved bets
-        const hasUnsavedBets = currentBets.some(bet => !savedNumbers.has(bet.number));
-        saveBetsBtn.disabled = !hasUnsavedBets;
+        // Check if there are any unsaved or modified bets
+        saveBetsBtn.disabled = !hasUnsavedBets();
 
         if (currentBets.length === 0) {
             noBetsMessage.style.display = 'block';
@@ -155,6 +163,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (existingBetIndex !== -1) {
             // Add amount to existing bet
             currentBets[existingBetIndex].amount += amount;
+            // Mark as modified if it was previously saved
+            if (savedNumbers.has(number)) {
+                modifiedNumbers.add(number);
+            }
         } else {
             // Add new bet
             const newBet = {
@@ -238,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Clear local bets after successful server deletion
                 currentBets = [];
                 savedNumbers.clear();
+                modifiedNumbers.clear();
                 currentPage = 1;
                 renderGrid();
                 showMessage(statusMessage, 'All bets have been deleted.', 'success');
@@ -271,14 +284,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Save all unsaved bets to the database
     const saveBetsToServer = async () => {
-        const unsavedBets = currentBets.filter(bet => !savedNumbers.has(bet.number));
+        const betsToSave = currentBets.filter(bet => 
+            !savedNumbers.has(bet.number) || 
+            modifiedNumbers.has(bet.number)
+        );
 
-        if (unsavedBets.length === 0) {
-            showMessage(statusMessage, 'No new bets to save.', 'info');
+        if (betsToSave.length === 0) {
+            showMessage(statusMessage, 'No new or modified bets to save.', 'info');
             return;
         }
 
-        const betsToSave = unsavedBets.map(({ number, amount }) => ({ number, amount }));
+        const betsData = betsToSave.map(({ number, amount }) => ({ number, amount }));
         saveBetsBtn.disabled = true;
         showMessage(statusMessage, 'Saving...', 'info');
 
@@ -288,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ bets: betsToSave }),
+                body: JSON.stringify({ bets: betsData }),
             });
 
             const result = await response.json();
@@ -297,13 +313,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(result.error || `HTTP error! Status: ${response.status}`);
             }
 
-            // Mark the successfully saved bets
-            unsavedBets.forEach(bet => {
+            // Mark the successfully saved bets and clear modifications
+            betsToSave.forEach(bet => {
                 savedNumbers.add(bet.number);
+                modifiedNumbers.delete(bet.number);
             });
 
-            const skippedMsg = result.skippedCount ? ` (${result.skippedCount} already existed)` : '';
-            const successMsg = `${result.message}${skippedMsg}`;
+            const updatedMsg = result.updatedCount ? ` (${result.updatedCount} updated)` : '';
+            const newMsg = result.newCount ? ` (${result.newCount} new)` : '';
+            const successMsg = `${result.message}${updatedMsg}${newMsg}`;
             
             // Show success modal
             saveSuccessMessage.textContent = successMsg;
