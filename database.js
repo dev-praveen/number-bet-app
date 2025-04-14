@@ -1,7 +1,17 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.resolve(__dirname, 'db/bets.db');
+// Handle both development and production paths
+const isDev = !process?.pkg;
+const dbFolder = isDev ? path.resolve(__dirname, 'db') : path.dirname(process.execPath);
+const dbPath = path.join(dbFolder, 'bets.db');
+
+// Ensure the database directory exists
+if (!fs.existsSync(dbFolder)) {
+    fs.mkdirSync(dbFolder, { recursive: true });
+}
+
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
         console.error('Error opening database:', err.message);
