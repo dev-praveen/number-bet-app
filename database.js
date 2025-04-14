@@ -41,35 +41,56 @@ const saveBets = (bets, callback) => {
         const numbers = bets.map(bet => bet.number);
         const placeholders = numbers.map(() => '?').join(',');
         
-        const existingNumbers = db.prepare(`SELECT number FROM bets WHERE number IN (${placeholders})`).all(numbers);
-        
-        // Filter out numbers that already exist
-        const existingNums = new Set(existingNumbers.map(row => row.number));
-        const newBets = bets.filter(bet => !existingNums.has(bet.number));
+        const existingBets = db.prepare(`SELECT number, amount FROM bets WHERE number IN (${placeholders})`).all(numbers);
+        const existingNumsMap = new Map(existingBets.map(bet => [bet.number, bet.amount]));
 
-        if (newBets.length === 0) {
-            callback(null, { message: 'No new bets to save.' });
-            return;
-        }
+        // Separate bets into new and updates
+        const newBets = [];
+        const updateBets = [];
 
-        const insertPlaceholders = newBets.map(() => '(?, ?)').join(',');
-        const insertStmt = db.prepare(`INSERT INTO bets (number, amount) VALUES ${insertPlaceholders}`);
-
-        // Flatten the bets array into [number1, amount1, number2, amount2, ...]
-        const params = newBets.reduce((acc, bet) => {
-            acc.push(bet.number, bet.amount);
-            return acc;
-        }, []);
+        bets.forEach(bet => {
+            if (existingNumsMap.has(bet.number)) {
+                updateBets.push(bet);
+            } else {
+                newBets.push(bet);
+            }
+        });
 
         // Use a transaction for atomicity
         const result = db.transaction(() => {
-            const info = insertStmt.run(...params);
-            return info;
+            let totalChanges = 0;
+
+            // Handle updates
+            if (updateBets.length > 0) {
+                const updateStmt = db.prepare('UPDATE bets SET amount = ? WHERE number = ?');
+                updateBets.forEach(bet => {
+                    const result = updateStmt.run(bet.amount, bet.number);
+                    totalChanges += result.changes;
+                });
+            }
+
+            // Handle new insertions
+            if (newBets.length > 0) {
+                const insertPlaceholders = newBets.map(() => '(?, ?)').join(',');
+                const insertStmt = db.prepare(`INSERT INTO bets (number, amount) VALUES ${insertPlaceholders}`);
+                
+                // Flatten the bets array into [number1, amount1, number2, amount2, ...]
+                const params = newBets.reduce((acc, bet) => {
+                    acc.push(bet.number, bet.amount);
+                    return acc;
+                }, []);
+
+                const insertResult = insertStmt.run(...params);
+                totalChanges += insertResult.changes;
+            }
+
+            return { changes: totalChanges, updates: updateBets.length };
         })();
 
         callback(null, {
-            message: `${result.changes} new bets saved successfully.`,
-            skippedCount: existingNums.size
+            message: `${result.changes} bets processed successfully (${result.updates} updated).`,
+            updatedCount: result.updates,
+            newCount: result.changes - result.updates
         });
     } catch (err) {
         console.error("Error in saveBets:", err.message);
