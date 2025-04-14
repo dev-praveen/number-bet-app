@@ -84,13 +84,29 @@ const saveBets = (bets, callback) => {
                 totalChanges += insertResult.changes;
             }
 
-            return { changes: totalChanges, updates: updateBets.length };
+            return { 
+                changes: totalChanges, 
+                newCount: newBets.length,
+                updatedCount: updateBets.length
+            };
         })();
 
+        // Create a clear message about what happened
+        let message = '';
+        if (result.newCount > 0 && result.updatedCount > 0) {
+            message = `${result.newCount} new bets saved and ${result.updatedCount} bets updated`;
+        } else if (result.newCount > 0) {
+            message = `${result.newCount} new bets saved`;
+        } else if (result.updatedCount > 0) {
+            message = `${result.updatedCount} bets updated`;
+        } else {
+            message = 'No changes made';
+        }
+
         callback(null, {
-            message: `${result.changes} bets processed successfully (${result.updates} updated).`,
-            updatedCount: result.updates,
-            newCount: result.changes - result.updates
+            message,
+            newCount: result.newCount,
+            updatedCount: result.updatedCount
         });
     } catch (err) {
         console.error("Error in saveBets:", err.message);

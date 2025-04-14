@@ -113,9 +113,13 @@ document.addEventListener('DOMContentLoaded', () => {
             // Format amount (e.g., to 2 decimal places) - adjust as needed
             cellAmount.textContent = bet.amount.toFixed(2);
 
-            // Add status indicator to saved bets
+            // Handle row classes for saved and modified states
             if (savedNumbers.has(bet.number)) {
-                row.classList.add('saved-bet');
+                if (modifiedNumbers.has(bet.number)) {
+                    row.classList.add('modified-bet');
+                } else {
+                    row.classList.add('saved-bet');
+                }
             }
 
             // Add Delete Button
@@ -316,15 +320,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Mark the successfully saved bets and clear modifications
             betsToSave.forEach(bet => {
                 savedNumbers.add(bet.number);
-                modifiedNumbers.delete(bet.number);
+                modifiedNumbers.delete(bet.number); // This will remove modified status after saving
             });
 
-            const updatedMsg = result.updatedCount ? ` (${result.updatedCount} updated)` : '';
-            const newMsg = result.newCount ? ` (${result.newCount} new)` : '';
-            const successMsg = `${result.message}${updatedMsg}${newMsg}`;
-            
-            // Show success modal
-            saveSuccessMessage.textContent = successMsg;
+            // Show success modal with the message directly from the server
+            saveSuccessMessage.textContent = result.message;
             showModal(saveSuccessModal);
             
             // Set up one-time event listener for OK button

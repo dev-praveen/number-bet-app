@@ -130,16 +130,35 @@ button:disabled {
 }
 
 .delete-btn {
-    background-color: #dc3545;
     color: white;
     border: none;
     padding: 3px 8px;
     border-radius: 3px;
     cursor: pointer;
     font-size: 0.8rem;
+    transition: background-color 0.2s ease;
+    background-color: #dc3545;
 }
 
 .delete-btn:hover {
+    background-color: #c82333;
+}
+
+/* Gray state for saved bets */
+.saved-bet .delete-btn {
+    background-color: #6c757d;
+}
+
+.saved-bet .delete-btn:hover {
+    background-color: #5a6268;
+}
+
+/* Red state for modified bets */
+.modified-bet .delete-btn {
+    background-color: #dc3545;
+}
+
+.modified-bet .delete-btn:hover {
     background-color: #c82333;
 }
 
@@ -227,14 +246,6 @@ button:disabled {
 
 .saved-bet {
     background-color: #f8f9fa;
-}
-
-.saved-bet .delete-btn {
-    background-color: #6c757d;
-}
-
-.saved-bet .delete-btn:hover {
-    background-color: #5a6268;
 }
 
 .modal {
