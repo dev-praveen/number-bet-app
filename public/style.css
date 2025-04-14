@@ -190,11 +190,11 @@ button:disabled {
 }
 
 #saveBetsBtn {
-    background-color: #ffc107;
-    color: #333;
+    background-color: #28a745;
+    color: #fff;
 }
 #saveBetsBtn:hover:not(:disabled) {
-    background-color: #e0a800;
+    background-color: #218838;
 }
 
 #deleteAllBtn {
@@ -235,4 +235,88 @@ button:disabled {
 
 .saved-bet .delete-btn:hover {
     background-color: #5a6268;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.show {
+    display: flex;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 24px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+}
+
+.modal-content.success {
+    border-top: 4px solid #28a745;
+}
+
+.success-icon {
+    font-size: 48px;
+    color: #28a745;
+    margin-bottom: 16px;
+}
+
+.modal h3 {
+    margin: 0 0 16px 0;
+    color: #333;
+    font-size: 1.4rem;
+}
+
+.modal p {
+    margin: 0 0 24px 0;
+    color: #666;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.modal-buttons button {
+    min-width: 100px;
+    padding: 8px 16px;
+}
+
+.danger-btn {
+    background-color: #dc3545;
+    color: white;
+}
+.danger-btn:hover:not(:disabled) {
+    background-color: #c82333;
+}
+
+.secondary-btn {
+    background-color: #6c757d;
+    color: white;
+}
+.secondary-btn:hover:not(:disabled) {
+    background-color: #5a6268;
+}
+
+.success-btn {
+    background-color: #28a745;
+    color: white;
+}
+.success-btn:hover:not(:disabled) {
+    background-color: #218838;
 }

@@ -21,6 +21,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const errorMessage = document.getElementById('error-message');
     const statusMessage = document.getElementById('status-message');
 
+    // Modal Elements
+    const deleteModal = document.getElementById('deleteModal');
+    const confirmDeleteBtn = document.getElementById('confirmDelete');
+    const cancelDeleteBtn = document.getElementById('cancelDelete');
+    const saveSuccessModal = document.getElementById('saveSuccessModal');
+    const saveSuccessMessage = document.getElementById('saveSuccessMessage');
+    const okSaveBtn = document.getElementById('okSave');
+
     // --- Functions ---
 
     // Generate a simple unique temporary ID for client-side operations
@@ -37,6 +45,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 element.className = '';
             }, 4000);
         }
+    };
+
+    // Function to show a modal
+    const showModal = (modal) => {
+        modal.classList.add('show');
+    };
+
+    // Function to hide a modal
+    const hideModal = (modal) => {
+        modal.classList.remove('show');
     };
 
     // Render the grid with pagination
@@ -202,37 +220,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // Delete All functionality with confirmation
+    // Delete All functionality with confirmation modal
     const deleteAllBets = async () => {
-        if (!confirm('Are you sure you want to delete all bets?')) {
-            return;
-        }
+        showModal(deleteModal);
 
-        try {
-            const response = await fetch('/api/delete-all-bets', {
-                method: 'DELETE',
-            });
+        const handleConfirmDelete = async () => {
+            try {
+                const response = await fetch('/api/delete-all-bets', {
+                    method: 'DELETE',
+                });
 
-            if (!response.ok) {
-                const result = await response.json();
-                throw new Error(result.error || `HTTP error! Status: ${response.status}`);
+                if (!response.ok) {
+                    const result = await response.json();
+                    throw new Error(result.error || `HTTP error! Status: ${response.status}`);
+                }
+
+                // Clear local bets after successful server deletion
+                currentBets = [];
+                savedNumbers.clear();
+                currentPage = 1;
+                renderGrid();
+                showMessage(statusMessage, 'All bets have been deleted.', 'success');
+            } catch (error) {
+                console.error('Error deleting bets:', error);
+                showMessage(statusMessage, `Error: ${error.message}`, 'error');
+            } finally {
+                hideModal(deleteModal);
             }
+        };
 
-            // Clear local bets after successful server deletion
-            currentBets = [];
-            savedNumbers.clear(); // Clear saved numbers
-            currentPage = 1;
-            renderGrid();
-            showMessage(statusMessage, 'All bets have been deleted.', 'success');
-        } catch (error) {
-            console.error('Error deleting bets:', error);
-            showMessage(statusMessage, `Error: ${error.message}`, 'error');
-        }
+        const handleCancelDelete = () => {
+            hideModal(deleteModal);
+        };
+
+        // Set up one-time event listeners
+        confirmDeleteBtn.onclick = () => {
+            handleConfirmDelete();
+            // Remove listeners after execution
+            confirmDeleteBtn.onclick = null;
+            cancelDeleteBtn.onclick = null;
+        };
+
+        cancelDeleteBtn.onclick = () => {
+            handleCancelDelete();
+            // Remove listeners after execution
+            confirmDeleteBtn.onclick = null;
+            cancelDeleteBtn.onclick = null;
+        };
     };
 
     // Save all unsaved bets to the database
     const saveBetsToServer = async () => {
-        // Filter out already saved numbers
         const unsavedBets = currentBets.filter(bet => !savedNumbers.has(bet.number));
 
         if (unsavedBets.length === 0) {
@@ -241,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const betsToSave = unsavedBets.map(({ number, amount }) => ({ number, amount }));
-        saveBetsBtn.disabled = true; // Disable button during request
+        saveBetsBtn.disabled = true;
         showMessage(statusMessage, 'Saving...', 'info');
 
         try {
@@ -265,14 +303,24 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const skippedMsg = result.skippedCount ? ` (${result.skippedCount} already existed)` : '';
-            showMessage(statusMessage, result.message + skippedMsg, 'success');
-            renderGrid();
+            const successMsg = `${result.message}${skippedMsg}`;
+            
+            // Show success modal
+            saveSuccessMessage.textContent = successMsg;
+            showModal(saveSuccessModal);
+            
+            // Set up one-time event listener for OK button
+            okSaveBtn.onclick = () => {
+                hideModal(saveSuccessModal);
+                okSaveBtn.onclick = null;
+            };
 
+            renderGrid();
         } catch (error) {
             console.error('Error saving bets:', error);
             showMessage(statusMessage, `Error: ${error.message}`, 'error');
         } finally {
-            saveBetsBtn.disabled = false; // Re-enable button
+            saveBetsBtn.disabled = false;
         }
     };
 
