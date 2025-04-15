@@ -7,6 +7,13 @@ const isDev = !process?.pkg;
 const dbFolder = isDev ? path.resolve(__dirname, 'db') : path.dirname(process.execPath);
 const dbPath = path.join(dbFolder, 'bets.db');
 
+// Game configurations
+const gameConfig = {
+    day: { table: 'day_bets', minNumber: 0, maxNumber: 99 },
+    night: { table: 'night_bets', minNumber: 0, maxNumber: 99 },
+    open: { table: 'open_bets', minNumber: 0, maxNumber: 9 }
+};
+
 // Ensure the database directory exists
 if (!fs.existsSync(dbFolder)) {
     fs.mkdirSync(dbFolder, { recursive: true });
@@ -17,30 +24,37 @@ try {
     db = new Database(dbPath);
     console.log('Connected to the SQLite database.');
     
-    // Create the bets tables for both day and night games if they don't exist
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS day_bets (
+    // Create tables for each game type
+    Object.entries(gameConfig).forEach(([game, config]) => {
+        const { table, minNumber, maxNumber } = config;
+        db.exec(`CREATE TABLE IF NOT EXISTS ${table} (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            number INTEGER NOT NULL CHECK(number >= 0 AND number <= 99),
+            number INTEGER NOT NULL CHECK(number >= ${minNumber} AND number <= ${maxNumber}),
             amount REAL NOT NULL CHECK(amount > 0),
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-        
-        CREATE TABLE IF NOT EXISTS night_bets (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            number INTEGER NOT NULL CHECK(number >= 0 AND number <= 99),
-            amount REAL NOT NULL CHECK(amount > 0),
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        );
-    `);
-    console.log("Bet tables are ready.");
+        )`);
+        console.log(`Table '${table}' is ready.`);
+    });
 } catch (err) {
     console.error('Error opening database:', err.message);
 }
 
-// Function to get the appropriate table name based on game type
+// Helper function to get the table name for a game type
 const getTableName = (gameType) => {
-    return gameType === 'night' ? 'night_bets' : 'day_bets';
+    const config = gameConfig[gameType];
+    if (!config) {
+        throw new Error(`Invalid game type: ${gameType}`);
+    }
+    return config.table;
+};
+
+// Function to validate bet numbers for a specific game
+const validateBetNumber = (number, gameType) => {
+    const config = gameConfig[gameType];
+    if (!config) {
+        throw new Error(`Invalid game type: ${gameType}`);
+    }
+    return number >= config.minNumber && number <= config.maxNumber;
 };
 
 // Function to save multiple bets in a transaction
@@ -53,6 +67,12 @@ const saveBets = (bets, gameType, callback) => {
     const tableName = getTableName(gameType);
 
     try {
+        // Validate all numbers are within range for the game type
+        const invalidBet = bets.some(bet => !validateBetNumber(bet.number, gameType));
+        if (invalidBet) {
+            throw new Error(`Invalid bet number for ${gameType} game`);
+        }
+
         // First, check which numbers already exist
         const numbers = bets.map(bet => bet.number);
         const placeholders = numbers.map(() => '?').join(',');

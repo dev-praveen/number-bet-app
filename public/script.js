@@ -7,6 +7,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const rowsPerPage = 15;
     const gameType = window.GAME_TYPE || 'day'; // Get game type from the page
 
+    // Set up game-specific configurations
+    const gameConfig = {
+        day: { minNumber: 0, maxNumber: 99 },
+        night: { minNumber: 0, maxNumber: 99 },
+        open: { minNumber: 0, maxNumber: 9 }
+    };
+
     // --- DOM Elements ---
     const betForm = document.getElementById('betForm');
     const betNumberInput = document.getElementById('betNumber');
@@ -161,8 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const number = parseInt(numberStr, 10);
         const amount = parseFloat(amountStr);
 
-        if (isNaN(number) || number < 0 || number > 99 || !Number.isInteger(number)) {
-            showMessage(errorMessage, 'Number must be a whole number between 00 and 99.');
+        const { minNumber, maxNumber } = gameConfig[gameType];
+        
+        if (isNaN(number) || number < minNumber || number > maxNumber || !Number.isInteger(number)) {
+            showMessage(errorMessage, `Number must be a whole number between ${minNumber.toString().padStart(2, '0')} and ${maxNumber}`);
             return;
         }
 
@@ -196,6 +205,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // Go to the last page to show the newly added item (optional)
         currentPage = Math.ceil(currentBets.length / rowsPerPage);
         renderGrid();
+    };
+
+    // Update input attributes based on game type
+    const updateInputConstraints = () => {
+        const { minNumber, maxNumber } = gameConfig[gameType];
+        betNumberInput.min = minNumber;
+        betNumberInput.max = maxNumber;
+        betNumberInput.placeholder = `${minNumber}-${maxNumber}`;
+        const label = document.querySelector('label[for="betNumber"]');
+        if (label) {
+            label.textContent = `Number (${minNumber}-${maxNumber}):`;
+        }
     };
 
     // Handle clicks within the table (for delete/edit) using event delegation
@@ -387,8 +408,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const value = e.target.value;
         const number = parseInt(value, 10);
         
-        // Check if the input is a valid 2-digit number
-        if (value.length === 2 && !isNaN(number) && number >= 0 && number <= 99) {
+        // Check if the input is a valid number within the game-specific range
+        const { minNumber, maxNumber } = gameConfig[gameType];
+        if (value.length >= minNumber.toString().length && value.length <= maxNumber.toString().length && !isNaN(number) && number >= minNumber && number <= maxNumber) {
             betAmountInput.focus();
         }
     });
@@ -436,6 +458,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load saved bets when the page loads
     loadSavedBets();
+
+    // Initialize input constraints
+    updateInputConstraints();
 
     // --- Initial Render ---
     renderGrid();
