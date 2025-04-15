@@ -30,6 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveSuccessMessage = document.getElementById('saveSuccessMessage');
     const okSaveBtn = document.getElementById('okSave');
 
+    // Add new modal elements for single bet deletion
+    const deleteBetModal = document.getElementById('deleteBetModal');
+    const deleteBetNumber = document.getElementById('deleteBetNumber');
+    const confirmDeleteBetBtn = document.getElementById('confirmDeleteBet');
+    const cancelDeleteBetBtn = document.getElementById('cancelDeleteBet');
+
+    let betToDeleteId = null; // Store the bet ID to be deleted
+
     // --- Functions ---
 
     // Generate a simple unique temporary ID for client-side operations
@@ -194,7 +202,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = event.target;
         if (target.tagName === 'BUTTON' && target.dataset.action === 'delete') {
             const betIdToDelete = target.dataset.id;
-            deleteBet(betIdToDelete);
+            const bet = currentBets.find(bet => bet.id === betIdToDelete);
+            if (bet) {
+                betToDeleteId = betIdToDelete;
+                deleteBetNumber.textContent = bet.number.toString().padStart(2, '0');
+                showModal(deleteBetModal);
+            }
         }
     };
 
@@ -404,6 +417,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     saveBetsBtn.addEventListener('click', saveBetsToServer);
+
+    // Set up event listeners for single bet deletion modal
+    confirmDeleteBetBtn.addEventListener('click', () => {
+        if (betToDeleteId) {
+            deleteBet(betToDeleteId);
+            hideModal(deleteBetModal);
+            betToDeleteId = null;
+        }
+    });
+
+    cancelDeleteBetBtn.addEventListener('click', () => {
+        hideModal(deleteBetModal);
+        betToDeleteId = null;
+    });
 
     // Load saved bets when the page loads
     loadSavedBets();
