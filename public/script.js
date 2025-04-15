@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let modifiedNumbers = new Set(); // Track numbers that have been modified
     let currentPage = 1;
     const rowsPerPage = 15;
+    const gameType = window.GAME_TYPE || 'day'; // Get game type from the page
 
     // --- DOM Elements ---
     const betForm = document.getElementById('betForm');
@@ -219,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Only attempt to delete from database if it's a saved bet
             if (savedNumbers.has(betToDelete.number)) {
-                const response = await fetch(`/api/bets/${betToDelete.number}`, {
+                const response = await fetch(`/api/bets/${betToDelete.number}?game=${gameType}`, {
                     method: 'DELETE'
                 });
 
@@ -232,6 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Remove from local state
             currentBets = currentBets.filter(bet => bet.id !== betId);
+            modifiedNumbers.delete(betToDelete.number);
 
             // Update pagination if needed
             const totalPages = Math.ceil(currentBets.length / rowsPerPage);
@@ -255,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const handleConfirmDelete = async () => {
             try {
-                const response = await fetch('/api/delete-all-bets', {
+                const response = await fetch(`/api/delete-all-bets?game=${gameType}`, {
                     method: 'DELETE',
                 });
 
@@ -316,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage(statusMessage, 'Saving...', 'info');
 
         try {
-            const response = await fetch('/api/save-bets', {
+            const response = await fetch(`/api/save-bets?game=${gameType}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -358,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load saved bets from the database
     const loadSavedBets = async () => {
         try {
-            const response = await fetch('/api/bets');
+            const response = await fetch(`/api/bets?game=${gameType}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }

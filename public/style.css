@@ -1,3 +1,31 @@
+/* Add new styles at the top */
+/* Game header styles */
+.game-header {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+}
+
+.back-link {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    text-decoration: none;
+    color: #007bff;
+    font-size: 0.9rem;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+.drawing-time {
+    color: #666;
+    margin-top: 5px;
+    font-size: 0.9rem;
+}
+
 body {
     font-family: sans-serif;
     line-height: 1.6;

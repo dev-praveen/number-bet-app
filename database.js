@@ -17,31 +17,47 @@ try {
     db = new Database(dbPath);
     console.log('Connected to the SQLite database.');
     
-    // Create the bets table if it doesn't exist
-    db.exec(`CREATE TABLE IF NOT EXISTS bets (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        number INTEGER NOT NULL CHECK(number >= 0 AND number <= 99),
-        amount REAL NOT NULL CHECK(amount > 0),
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
-    console.log("Table 'bets' is ready.");
+    // Create the bets tables for both day and night games if they don't exist
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS day_bets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            number INTEGER NOT NULL CHECK(number >= 0 AND number <= 99),
+            amount REAL NOT NULL CHECK(amount > 0),
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE IF NOT EXISTS night_bets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            number INTEGER NOT NULL CHECK(number >= 0 AND number <= 99),
+            amount REAL NOT NULL CHECK(amount > 0),
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+    console.log("Bet tables are ready.");
 } catch (err) {
     console.error('Error opening database:', err.message);
 }
 
+// Function to get the appropriate table name based on game type
+const getTableName = (gameType) => {
+    return gameType === 'night' ? 'night_bets' : 'day_bets';
+};
+
 // Function to save multiple bets in a transaction
-const saveBets = (bets, callback) => {
+const saveBets = (bets, gameType, callback) => {
     if (!bets || bets.length === 0) {
         callback(null, { message: 'No bets to save.' });
         return;
     }
+
+    const tableName = getTableName(gameType);
 
     try {
         // First, check which numbers already exist
         const numbers = bets.map(bet => bet.number);
         const placeholders = numbers.map(() => '?').join(',');
         
-        const existingBets = db.prepare(`SELECT number, amount FROM bets WHERE number IN (${placeholders})`).all(numbers);
+        const existingBets = db.prepare(`SELECT number, amount FROM ${tableName} WHERE number IN (${placeholders})`).all(numbers);
         const existingNumsMap = new Map(existingBets.map(bet => [bet.number, bet.amount]));
 
         // Separate bets into new and updates
@@ -62,7 +78,7 @@ const saveBets = (bets, callback) => {
 
             // Handle updates
             if (updateBets.length > 0) {
-                const updateStmt = db.prepare('UPDATE bets SET amount = ? WHERE number = ?');
+                const updateStmt = db.prepare(`UPDATE ${tableName} SET amount = ? WHERE number = ?`);
                 updateBets.forEach(bet => {
                     const result = updateStmt.run(bet.amount, bet.number);
                     totalChanges += result.changes;
@@ -72,7 +88,7 @@ const saveBets = (bets, callback) => {
             // Handle new insertions
             if (newBets.length > 0) {
                 const insertPlaceholders = newBets.map(() => '(?, ?)').join(',');
-                const insertStmt = db.prepare(`INSERT INTO bets (number, amount) VALUES ${insertPlaceholders}`);
+                const insertStmt = db.prepare(`INSERT INTO ${tableName} (number, amount) VALUES ${insertPlaceholders}`);
                 
                 // Flatten the bets array into [number1, amount1, number2, amount2, ...]
                 const params = newBets.reduce((acc, bet) => {
@@ -116,5 +132,6 @@ const saveBets = (bets, callback) => {
 
 module.exports = {
     db,
-    saveBets
+    saveBets,
+    getTableName
 };
