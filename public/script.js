@@ -407,11 +407,53 @@ document.addEventListener('DOMContentLoaded', () => {
     betNumberInput.addEventListener('input', (e) => {
         const value = e.target.value;
         const number = parseInt(value, 10);
-        
-        // Check if the input is a valid number within the game-specific range
-        const { minNumber, maxNumber } = gameConfig[gameType];
-        if (value.length >= minNumber.toString().length && value.length <= maxNumber.toString().length && !isNaN(number) && number >= minNumber && number <= maxNumber) {
+
+        // Restrict input to maximum allowed digits
+        const maxDigits = gameType === 'open' ? 1 : 2;
+        if (value.length > maxDigits) {
+            betNumberInput.value = value.slice(0, maxDigits);
+            return;
+        }
+
+        // For open game (0-9), move focus after valid single digit
+        if (gameType === 'open') {
+            if (!isNaN(number) && number >= 0 && number <= 9) {
+                betAmountInput.focus();
+            }
+            return;
+        }
+
+        // For day/night games (00-99), move focus only after valid double digits
+        if (value.length === 2 && !isNaN(number) && number >= 0 && number <= 99) {
             betAmountInput.focus();
+        }
+    });
+
+    // Handle Enter key on number input
+    betNumberInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // Prevent form submission
+            const value = e.target.value.trim();
+            const number = parseInt(value, 10);
+
+            // For open game, handle single digit
+            if (gameType === 'open') {
+                if (!isNaN(number) && number >= 0 && number <= 9) {
+                    betAmountInput.focus();
+                }
+                return;
+            }
+
+            // For day/night games, handle single and double digits
+            if (!isNaN(number)) {
+                if (value.length === 1 && number >= 0 && number <= 9) {
+                    // Pad single digit with zero
+                    betNumberInput.value = value.padStart(2, '0');
+                    betAmountInput.focus();
+                } else if (value.length === 2 && number >= 0 && number <= 99) {
+                    betAmountInput.focus();
+                }
+            }
         }
     });
 
